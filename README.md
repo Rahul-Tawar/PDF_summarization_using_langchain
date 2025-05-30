@@ -48,6 +48,19 @@ The application will be available at `http://localhost:3000`.
 3. Wait for the processing to complete
 4. View the generated summary
 
+## Screenshots
+
+1. Drag-and-drop PDF upload interface 
+![](/public/UploadInstance.png)
+
+2. Summary Instance
+
+![](/public/SummaryInstance.png)
+
+3. Chat Interface
+
+![](/public/ChatInterface.png)
+
 ## Architecture
 
 The application uses a modern tech stack:
