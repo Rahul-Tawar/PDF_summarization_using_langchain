@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFLoader } from 'langchain/document_loaders/fs/pdf';
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
 import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { MemoryVectorStore } from 'langchain/vectorstores/memory';
 import { ChatOpenAI } from '@langchain/openai';
-import { MapReduceDocumentsChain, loadSummarizeChain } from 'langchain/chains';
+import { loadSummarizationChain } from 'langchain/chains';
 import { PromptTemplate } from '@langchain/core/prompts';
 
 export async function POST(req: NextRequest) {
@@ -19,12 +19,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Convert File to Buffer
+    // Convert File to Blob
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const blob = new Blob([arrayBuffer], { type: file.type });
 
     // Load PDF
-    const loader = new PDFLoader(buffer);
+    const loader = new PDFLoader(blob);
     const docs = await loader.load();
 
     // Split text into chunks
@@ -34,19 +34,14 @@ export async function POST(req: NextRequest) {
     });
     const splitDocs = await textSplitter.splitDocuments(docs);
 
-    // Create embeddings and vector store
-    const embeddings = new OpenAIEmbeddings({
-      openAIApiKey: process.env.OPENAI_API_KEY,
-    });
-    const vectorStore = await MemoryVectorStore.fromDocuments(splitDocs, embeddings);
-
-    // Create summarization chain
+    // Create LLM instance
     const llm = new ChatOpenAI({
       openAIApiKey: process.env.OPENAI_API_KEY,
       modelName: 'gpt-3.5-turbo',
       temperature: 0,
     });
 
+    // Create prompts
     const mapPrompt = new PromptTemplate({
       template: `Write a concise summary of the following text:
       {text}
@@ -61,14 +56,15 @@ export async function POST(req: NextRequest) {
       inputVariables: ['text'],
     });
 
-    const chain = loadSummarizeChain(llm, {
+    // Create summarization chain
+    const chain = loadSummarizationChain(llm, {
       type: 'map_reduce',
-      combinePrompt,
-      combineMapPrompt: mapPrompt,
+      combinePrompt: combinePrompt,
+      mapPrompt: mapPrompt,  // Fixed parameter name
     });
 
     // Generate summary
-    const result = await chain.call({
+    const result = await chain.invoke({
       input_documents: splitDocs,
     });
 
@@ -76,8 +72,8 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error processing PDF:', error);
     return NextResponse.json(
-      { error: 'Error processing PDF' },
+      { error: error instanceof Error ? error.message : 'Error processing PDF' },
       { status: 500 }
     );
   }
-} 
+}

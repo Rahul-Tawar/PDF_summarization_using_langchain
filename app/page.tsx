@@ -1,56 +1,79 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useDropzone } from 'react-dropzone';
-import PDFUploader from '@/components/PDFUploader';
-import SummaryDisplay from '@/components/SummaryDisplay';
+import React, { useState, useRef } from 'react';
+import { FileUploader } from '../components/FileUploader';
+import { ChatInterface } from '../components/ChatInterface';
+import { TldrButton } from '../components/TldrButton';
+import { LoadingIndicator } from '../components/LoadingIndicator';
 
-export default function Home() {
-  const [summary, setSummary] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+type AppState = 'upload' | 'chat';
 
-  const handleFileUpload = async (file: File) => {
-    setIsLoading(true);
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const response = await fetch('/api/summarize', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to summarize PDF');
-      }
-
-      const data = await response.json();
-      setSummary(data.summary);
-    } catch (error) {
-      console.error('Error summarizing PDF:', error);
-      alert('Error summarizing PDF. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+const HomePage: React.FC = () => {
+  const [appState, setAppState] = useState<AppState>('upload');
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [fileName, setFileName] = useState<string>('');
+  
+  const handleFileAccepted = (file: File) => {
+    setFileName(file.name);
+    setIsProcessing(true);
+    
+    // Simulate processing time
+    setTimeout(() => {
+      setIsProcessing(false);
+      setAppState('chat');
+    }, 2000);
   };
-
+  
+  const handleReset = () => {
+    setAppState('upload');
+    setFileName('');
+  };
+  
+  const handleGenerateSummary = () => {
+    setIsProcessing(true);
+    
+    // Simulate summary generation
+    setTimeout(() => {
+      setIsProcessing(false);
+      // In a real app, this would trigger the summary generation
+    }, 1500);
+  };
+  
   return (
-    <main className="min-h-screen p-8 bg-gray-50">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">
-          PDF Summarization with RAG
-        </h1>
-        
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <PDFUploader onFileUpload={handleFileUpload} isLoading={isLoading} />
-        </div>
-
-        {summary && (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <SummaryDisplay summary={summary} />
+    <div className="relative w-full max-w-4xl mx-auto h-full flex flex-col">
+        {appState === 'upload' && (
+          <div className="flex-1 flex items-center justify-center p-4">
+            <FileUploader onFileAccepted={handleFileAccepted} />
           </div>
         )}
+        
+        {appState === 'chat' && (
+          <>
+            <div className="absolute top-4 left-4 right-4 flex justify-between items-center">
+              <div className="bg-slate-800/70 backdrop-blur-lg px-4 py-2 rounded-lg">
+                <span className="text-white font-medium">{fileName}</span>
+              </div>
+              <button 
+                onClick={handleReset}
+                className="bg-slate-800/70 backdrop-blur-lg text-white px-4 py-2 rounded-lg transition-all hover:bg-slate-700/70"
+              >
+                Upload New PDF
+              </button>
+            </div>
+            <div className="flex-1 mt-16">
+              <ChatInterface />
+            </div>
+          </>
+        )}
+        
+        {isProcessing && <LoadingIndicator />}
+        
+        {appState === 'chat' && (
+          <TldrButton onClick={handleGenerateSummary} disabled={isProcessing} />
+        )}
       </div>
-    </main>
+
   );
-} 
+};
+
+export default HomePage;
